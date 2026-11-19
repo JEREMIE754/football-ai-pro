@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Football AI Pro V2</title>
+<style>
+body{margin:0;padding:18px;background:#101827;color:white;font-family:Arial}
+main{max-width:520px;margin:auto;background:#1e293b;padding:18px;border-radius:14px}
+h1{text-align:center;color:#38bdf8}
+label{display:block;margin-top:12px}
+input{width:100%;box-sizing:border-box;padding:12px;margin-top:5px;border:0;border-radius:7px}
+button{width:100%;padding:14px;margin-top:18px;background:#0284c7;color:white;border:0;border-radius:8px;font-size:17px}
+.result{background:#334155;padding:14px;border-radius:9px;margin-top:18px;line-height:1.8}
+small{color:#cbd5e1}
+</style>
+</head>
+<body>
+<main>
+<h1>⚽ FOOTBALL AI PRO V2</h1>
+<p>Analyse statistique des matchs</p>
+
+<label>Équipe à domicile</label>
+<input id="home" placeholder="Real Madrid">
+
+<label>Équipe à l'extérieur</label>
+<input id="away" placeholder="Celta Vigo">
+
+<label>Buts marqués à domicile</label>
+<input id="hm" type="number" min="0" step="0.1" placeholder="2.0">
+
+<label>Buts encaissés à domicile</label>
+<input id="hc" type="number" min="0" step="0.1" placeholder="0.8">
+
+<label>Buts marqués à l'extérieur</label>
+<input id="am" type="number" min="0" step="0.1" placeholder="1.2">
+
+<label>Buts encaissés à l'extérieur</label>
+<input id="ac" type="number" min="0" step="0.1" placeholder="1.5">
+
+<button onclick="analyser()">ANALYSER LE MATCH</button>
+<div id="result" class="result">Entre les statistiques pour commencer.</div>
+</main>
+
+<script>
+function analyser(){
+ const home=document.getElementById("home").value.trim()||"Domicile";
+ const away=document.getElementById("away").value.trim()||"Extérieur";
+ const ids=["hm","hc","am","ac"];
+ const v=ids.map(id=>document.getElementById(id).value);
+
+ if(v.some(x=>x==="")||v.some(x=>!Number.isFinite(Number(x))||Number(x)<0)){
+  alert("Entre les quatre statistiques correctement.");
+  return;
+ }
+
+ const [hm,hc,am,ac]=v.map(Number);
+ const lh=Math.max(0.05,(hm+ac)/2);
+ const la=Math.max(0.05,(am+hc)/2);
+
+ function fact(n){let r=1;for(let i=2;i<=n;i++)r*=i;return r;}
+ function pois(k,l){return Math.exp(-l)*Math.pow(l,k)/fact(k);}
+
+ let scores=[],win=0,draw=0,loss=0,btts=0;
+ let over15=0,over25=0,over35=0,total=0;
+
+ for(let h=0;h<=12;h++){
+  for(let a=0;a<=12;a++){
+   let p=pois(h,lh)*pois(a,la);
+   scores.push({h,a,p});
+   total+=p;
+   if(h>a)win+=p;else if(h===a)draw+=p;else loss+=p;
+   if(h>0&&a>0)btts+=p;
+   if(h+a>=2)over15+=p;
+   if(h+a>=3)over25+=p;
+   if(h+a>=4)over35+=p;
+  }
+ }
+
+ const pct=x=>(100*x/total).toFixed(1)+"%";
+ const best=scores.sort((x,y)=>y.p-x.p).slice(0,10);
+ const scoreHTML=best.map((s,i)=>
+  `<div>${i+1}. ${s.h} - ${s.a} : <b>${pct(s.p)}</b></div>`
+ ).join("");
+
+ document.getElementById("result").innerHTML=`
+ <h3>${home} - ${away}</h3>
+ <b>Résultat 1X2</b><br>
+ Victoire ${home} : ${pct(win)}<br>
+ Match nul : ${pct(draw)}<br>
+ Victoire ${away} : ${pct(loss)}<br>
+ <small>Total 1X2 : ${pct(win+draw+loss)}</small>
+ <hr>
+ <b>Les deux équipes marquent</b><br>
+ BTTS Oui : ${pct(btts)}<br>
+ BTTS Non : ${pct(total-btts)}<br>
+ <hr>
+ <b>Buts dans le match</b><br>
+ Over 1.5 : ${pct(over15)}<br>
+ Under 1.5 : ${pct(total-over15)}<br>
+ Over 2.5 : ${pct(over25)}<br>
+ Under 2.5 : ${pct(total-over25)}<br>
+ Over 3.5 : ${pct(over35)}<br>
+ Under 3.5 : ${pct(total-over35)}<br>
+ <hr>
+ <b>TOP 10 SCORES EXACTS</b><br>${scoreHTML}
+ `;
+}
+</script>
+</body>
+</html>
